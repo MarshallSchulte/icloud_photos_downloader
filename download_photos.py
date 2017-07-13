@@ -52,16 +52,16 @@ def download(directory, username, password, size, recent, \
     directory = directory.rstrip('/')
 
     icloud = authenticate(username, password)
-    updatePhotos(icloud)
 
     print "Looking up all photos..."
-    photos = icloud.photos.all.photos
+    photos = list(icloud.photos.all.photos)
 
     # Optional: Only download the x most recent photos.
+    print recent
     if recent is not None:
         photos = photos[slice(recent * -1, None)]
 
-    photos_count = len(photos)
+    photos_count = len(icloud.photos.all)
 
     if download_videos:
         print "Downloading %d %s photos and videos to %s/ ..." % (photos_count, size, directory)
@@ -80,12 +80,7 @@ def download(directory, username, password, size, recent, \
                         "Skipping %s, only downloading photos." % photo.filename)
                     continue
 
-                created_date = None
-                try:
-                    created_date = parse(photo.created)
-                except TypeError:
-                    print "Could not find created date for photo!"
-                    continue
+                created_date = photo.created
 
                 date_path = '{:%Y/%m/%d}'.format(created_date)
                 download_dir = '/'.join((directory, date_path))
@@ -148,28 +143,6 @@ def authenticate(username, password):
 
     return icloud
 
-# See: https://github.com/picklepete/pyicloud/pull/100
-def updatePhotos(icloud):
-    print "Updating photos..."
-    try:
-        icloud.photos.update()
-    except pyicloud.exceptions.PyiCloudAPIResponseError as exception:
-        print exception
-        print
-        print(
-            "This error usually means that Apple's servers are getting ready "
-            "to send you data about your photos.")
-        print(
-            "This process can take around 5-10 minutes, and it only happens when "
-            "you run the script for the very first time.")
-        print "Please wait a few minutes, then try again."
-        print
-        print(
-            "(If you are still seeing this message after 30 minutes, "
-            "then please open an issue on GitHub.)")
-        print
-        sys.exit(1)
-
 def truncate_middle(s, n):
     if len(s) <= n:
         return s
@@ -218,7 +191,8 @@ def download_photo(photo, size, force_size, download_dir, progress_bar):
                     (photo.filename, size))
 
 
-        except (requests.exceptions.ConnectionError, socket.timeout):
+        except (requests.exceptions.ConnectionError, socket.timeout, OpenSSL.SSL.ZeroReturnError):
+            os.remove(download_path)
             tqdm.write(
                 '%s download failed, retrying after %d seconds...' %
                 (photo.filename, WAIT_SECONDS))
