@@ -31,7 +31,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               default='original')
 @click.option('--recent',
               help='Number of recent photos to download (default: download all photos)',
-              type=click.IntRange(0))
+              type=click.STRING)
 @click.option('--download-videos',
               help='Download both videos and photos (default: only download photos)',
               is_flag=True)
@@ -52,16 +52,25 @@ def download(directory, username, password, size, recent, \
     directory = directory.rstrip('/')
 
     icloud = authenticate(username, password)
-
+    recent = eval(recent)
     print "Looking up all photos..."
-    photos = list(icloud.photos.all.photos)
-
-    # Optional: Only download the x most recent photos.
     print recent
-    if recent is not None:
-        photos = photos[slice(recent * -1, None)]
+    p = list(icloud.photos.all.photos)
+    print p
+    # Optional: Only download the x most recent photos.
 
-    photos_count = len(icloud.photos.all)
+
+    #This is assuming that recent is an array of filenames
+    photos = []
+    for photo in p:
+        print photo.filename
+        if photo.filename in recent:
+            photos.insert(-1,photo)
+
+
+    #
+    photos_count = len(photos)
+    print photos
 
     if download_videos:
         print "Downloading %d %s photos and videos to %s/ ..." % (photos_count, size, directory)
